@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
   kotlin("multiplatform")
 }
@@ -23,6 +25,12 @@ kotlin {
       browser()
     }
   }
+
+  @OptIn(ExperimentalWasmDsl::class)
+  wasmJs {
+    browser()
+  }
+
   if (System.getProperty("knative", "true").toBoolean()) {
     iosX64()
     iosArm64()
@@ -36,6 +44,7 @@ kotlin {
     tvosArm64()
     tvosSimulatorArm64()
   }
+
   sourceSets {
     val commonMain by getting {
       dependencies {
@@ -44,10 +53,23 @@ kotlin {
         api(libs.kotlin.coroutines.core)
       }
     }
+
     val jvmMain by getting {
       dependencies {
         api(libs.okhttp.core)
       }
+    }
+
+    val commonJsMain by creating {
+      dependsOn(commonMain)
+    }
+
+    jsMain {
+      dependsOn(commonJsMain)
+    }
+
+    wasmJsMain {
+      dependsOn(commonJsMain)
     }
   }
 }

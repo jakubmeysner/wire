@@ -62,6 +62,11 @@ kotlin {
 
     val commonJsMain by creating {
       dependsOn(commonMain)
+
+      dependencies {
+        implementation(libs.ktor.client.core)
+        implementation(libs.ktor.client.js)
+      }
     }
 
     jsMain {

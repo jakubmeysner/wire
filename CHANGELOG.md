@@ -4,6 +4,70 @@ Change Log
 Unreleased
 ----------
 
+Version 5.4.0
+---------------------
+
+_2025-09-02_
+
+### Gradle plugin
+
+* Support `android.builtInKotlin=true` and experimental plugin (#3367 by [Omar Ismail][omarismail94])
+
+Version 5.3.11
+---------------------
+
+_2025-08-18_
+
+### Swift
+
+* Fix a naming collision if a oneof is called `container` (#3364 by [John Szumski][jszumski])
+
+Version 5.3.10
+---------------------
+
+_2025-08-13_
+
+### Swift
+
+* Breaking: revert "mark generated enums with `@objc`" (#3361 by [Dimitris Koutsogiorgas][dnkoutso])
+
+Version 5.3.8 / 5.3.9
+---------------------
+
+_2025-08-08_
+
+### Swift
+
+* Fix edge case for oneof field named `self` (#3360 by [Dimitris Koutsogiorgas][dnkoutso])
+
+Version 5.3.7
+---------------------
+
+_2025-08-07_
+
+### Swift
+
+* Correctly disambiguate types that exist across multiple modules (#3358 by [Dimitris Koutsogiorgas][dnkoutso])
+* Improve performance of topological sort algorithm for partitions (#3359 by [Dimitris Koutsogiorgas][dnkoutso])
+
+Version 5.3.6
+---------------------
+
+_2025-08-05_
+
+### CLI
+
+* New CLI option `--ignore_unused_roots_and_prunes` (#3354)
+
+### JVM
+
+* Fix: Handle negative hexadecimal in default values (#3355)
+* Optimization: Avoid copying of repeated and map types when mutableTypes are being used (#3352 by [Rahul Ravikumar][tikurahul])
+
+### Swift
+
+* Fix: Properly disambiguate OneOf enum if it has the same name as enclosing type (#3350 by [Dimitris Koutsogiorgas][dnkoutso])
+
 Version 5.3.5
 ---------------------
 
@@ -1639,12 +1703,14 @@ Initial version.
  [ShayOinif]: https://github.com/ShayOinif
  [aaron-edwards]: https://github.com/aaron-edwards
  [amorde]: https://github.com/amorde
+ [omarismail94]: https://github.com/omarismail94
  [bom]: https://docs.gradle.org/6.2/userguide/platforms.html#sub:bom_import
  [brunofrts]: https://github.com/brunofrts
  [custom-handlers-doc]: https://square.github.io/wire/wire_compiler/#custom-handlers
  [custom-handlers-recipes]: https://github.com/square/wire/tree/c3c5f559556ad9d41582a0e0a025679b5493f7aa/wire-library/wire-schema-tests/src/test/java/com/squareup/wire/recipes
  [damianw]: https://github.com/damianw
  [dnkoutso]: https://github.com/dnkoutso
+ [jszumski]: https://github.com/jszumski
  [event_listener]: https://github.com/square/wire/blob/3e300c492a74e80260581e3aee624d9cf3e5b1f8/wire-schema/src/commonMain/kotlin/com/squareup/wire/schema/EventListener.kt#L105-L111
  [frojasg]: https://github.com/frojasg
  [javapoet]: https://github.com/square/javapoet

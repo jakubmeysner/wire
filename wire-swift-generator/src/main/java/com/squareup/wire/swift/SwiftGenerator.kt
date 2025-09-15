@@ -849,12 +849,15 @@ class SwiftGenerator private constructor(
 
         // We cannot rely upon built-in Codable support since we need to support multiple keys.
         if (type.declaredFieldsAndOneOfFields.isNotEmpty()) {
+          // check for name collisions
+          val container = if ("container" in type.declaredFieldsAndOneOfFields.map { it.name }) "_container" else "container"
+
           addFunction(
             FunctionSpec.constructorBuilder()
               .addParameter("from", "decoder", decoder)
               .addModifiers(PUBLIC)
               .throws(true)
-              .addStatement("let container = try decoder.container(keyedBy: %T.self)", codingKeys)
+              .addStatement("let $container = try decoder.container(keyedBy: %T.self)", codingKeys)
               .apply {
                 type.declaredFields.forEach { field ->
                   val hasPropertyWrapper = !isIndirect(type, field) && (field.defaultedValue != null || field.isProtoDefaulted)
@@ -891,7 +894,7 @@ class SwiftGenerator private constructor(
                   val fieldName = if (hasPropertyWrapper) { "_${field.safeName}" } else { field.safeName }
                   val prefix = if (hasPropertyWrapper) { "self.%1N.wrappedValue" } else { "self.%1N" }
                   addStatement(
-                    "$prefix = try container.$decode($typeArg%2T.self, $forKeys: $keys)",
+                    "$prefix = try $container.$decode($typeArg%2T.self, $forKeys: $keys)",
                     fieldName,
                     typeName,
                   )
@@ -910,24 +913,27 @@ class SwiftGenerator private constructor(
 
                     val typeName = field.typeName.makeNonOptional()
 
+                    val safeName = field.safeName
+                    val fieldName = if (safeName == "self") "self_" else safeName
+
                     if (index == 0) {
                       beginControlFlow(
                         "if",
-                        "let %1N = try container.decodeIfPresent(%2T.self, forKey: %3S)",
-                        field.safeName,
+                        "let %1N = try $container.decodeIfPresent(%2T.self, forKey: %3S)",
+                        fieldName,
                         typeName,
                         keyName,
                       )
                     } else {
                       nextControlFlow(
                         "else if",
-                        "let %1N = try container.decodeIfPresent(%2T.self, forKey: %3S)",
-                        field.safeName,
+                        "let %1N = try $container.decodeIfPresent(%2T.self, forKey: %3S)",
+                        fieldName,
                         typeName,
                         keyName,
                       )
                     }
-                    addStatement("self.%1N = .%2N(%2N)", oneOf.name, field.safeName)
+                    addStatement("self.%1N = .%2N(%3N)", oneOf.name, field.safeName, fieldName)
                   }
                   nextControlFlow("else", "")
                   addStatement("self.%N = nil", oneOf.name)
@@ -941,7 +947,7 @@ class SwiftGenerator private constructor(
               .addParameter("to", "encoder", encoder)
               .addModifiers(PUBLIC)
               .throws(true)
-              .addStatement("var container = encoder.container(keyedBy: %T.self)", codingKeys)
+              .addStatement("var $container = encoder.container(keyedBy: %T.self)", codingKeys)
               .apply {
                 if (type.declaredFieldsAndOneOfFields.any { it.codableName != null }) {
                   addStatement("let preferCamelCase = encoder.protoKeyNameEncodingStrategy == .camelCase")
@@ -976,7 +982,7 @@ class SwiftGenerator private constructor(
                     } ?: Pair("%2S", arrayOf(field.name))
 
                     addStatement(
-                      "try container.$encode(${typeArg}self.%1N, forKey: $keys)",
+                      "try $container.$encode(${typeArg}self.%1N, forKey: $keys)",
                       field.safeName,
                       *args,
                     )
@@ -1019,7 +1025,7 @@ class SwiftGenerator private constructor(
                     } ?: Pair("%2S", arrayOf(field.name))
 
                     addStatement(
-                      "case .%1N(let %1N): try container.encode(%1N, forKey: $keys)",
+                      "case .%1N(let %1N): try $container.encode(%1N, forKey: $keys)",
                       field.safeName,
                       *args,
                     )
@@ -1687,7 +1693,6 @@ class SwiftGenerator private constructor(
     val enumName = type.typeName
     return TypeSpec.enumBuilder(enumName)
       .addModifiers(PUBLIC)
-      .addAttribute("objc")
       .addSuperTypes(listOf(INT32, CASE_ITERABLE, type.protoCodableType))
       .apply {
         type.protoDefaultedName?.let { protoDefaultedName ->
@@ -1803,6 +1808,7 @@ class SwiftGenerator private constructor(
         return when (this.simpleName) {
           "Type" -> "Type_"
           "Error" -> "Error_"
+          "Self" -> "Self_"
           else -> this.simpleName
         }
       }
@@ -1894,6 +1900,10 @@ class SwiftGenerator private constructor(
       val nameToTypeName = mutableMapOf<ProtoType, DeclaredTypeName>()
 
       fun putAll(enclosingClassName: DeclaredTypeName?, types: List<Type>) {
+        val nameToModules: Map<String, List<String>> = existingTypeModuleName
+          .entries
+          .groupBy({ it.key.simpleName }, { it.value })
+
         for (type in types) {
           val protoType = type.type
 
@@ -1903,10 +1913,13 @@ class SwiftGenerator private constructor(
             val safeName = protoType.safeName
 
             val moduleName = existingTypeModuleName[protoType] ?: ""
-            // In some cases a proto declares a message that collides with built-in Foundation and Swift stdlib
-            // types. For those we always qualify the type name to disambiguate.
+            val isCommonSwiftType = protoType.simpleName in SWIFT_COMMON_TYPES
+            val isInMultipleModules = (nameToModules[protoType.simpleName]?.size ?: 0) > 1
 
-            if (protoType.simpleName in SWIFT_COMMON_TYPES) {
+            // In some cases, a proto declares a message that collides with built-in Foundation and
+            // Swift stdlib types or the same name of a type exists across multiple modules.
+            // For those, we always qualify the type name to disambiguate.
+            if (isCommonSwiftType || isInMultipleModules) {
               DeclaredTypeName.qualifiedTypeName("$moduleName.$safeName")
             } else {
               DeclaredTypeName(moduleName, safeName)
